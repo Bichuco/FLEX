@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nuevo Pedido</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-900 text-white p-10">
+
+<h1 class="text-4xl font-bold mb-10">
+Nuevo Pedido
+</h1>
+
+<div class="bg-gray-800 max-w-2xl p-8 rounded-3xl">
+
+<input id="vehicle" type="text" placeholder="Vehículo"
+class="w-full mb-4 p-4 rounded-xl bg-gray-700">
+
+<input id="ecu" type="text" placeholder="ECU"
+class="w-full mb-4 p-4 rounded-xl bg-gray-700">
+
+<input id="file" type="file"
+class="w-full mb-6 text-white">
+
+<button onclick="createOrder()"
+class="bg-blue-600 hover:bg-blue-700 px-8 py-4 rounded-2xl">
+Enviar Pedido
+</button>
+
+</div>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/upload.js"></script>
+
+</body>
+</html>
