@@ -1,123 +1,157 @@
-const SHEET_USERS = 'Usuarios';
-const SHEET_ORDERS = 'Pedidos';
+const SHEET_NAME = 'Proyectos';
+const ROOT_FOLDER_ID = 'PON_AQUI_EL_ID_DE_LA_CARPETA_RAIZ';
 
-function doPost(e){
-
-const data = JSON.parse(e.postData.contents);
-
-switch(data.action){
-
-case 'register':
-return registerUser(data);
-
-case 'login':
-return loginUser(data);
-
-case 'createOrder':
-return createOrder(data);
-
-case 'getOrders':
-return getOrders(data);
-
+function doGet() {
+  return HtmlService.createHtmlOutputFromFile('index')
+    .setTitle('Gestión de proyectos de modificación de archivos');
 }
 
+function getSheet_() {
+  return SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
 }
 
-function registerUser(data){
+function listarProyectos() {
+  const sheet = getSheet_();
+  const data = sheet.getDataRange().getValues();
+  data.shift(); // encabezados
 
-const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_USERS);
-const rows = sheet.getDataRange().getValues();
-
-for(let i=1;i<rows.length;i++){
-
-if(rows[i][2] === data.email){
-return output({success:false,message:'Usuario ya existe'});
+  return data.map(row => ({
+    id: row[0],
+    matricula: row[1],
+    vehiculo: row[2],
+    tipo: row[3],
+    ajustes: row[4],
+    dtcs: row[5],
+    comentarios: row[6],
+    archivoOriginalId: row[7],
+    carpetaId: row[8],
+    fecha: row[9]
+  }));
 }
 
+function getProyectoById(id) {
+  const sheet = getSheet_();
+  const data = sheet.getDataRange().getValues();
+  data.shift(); // encabezados
+
+  for (let row of data) {
+    if (String(row[0]) === String(id)) {
+      return {
+        id: row[0],
+        matricula: row[1],
+        vehiculo: row[2],
+        tipo: row[3],
+        ajustes: row[4],
+        dtcs: row[5],
+        comentarios: row[6],
+        archivoOriginalId: row[7],
+        carpetaId: row[8],
+        fecha: row[9]
+      };
+    }
+  }
+  throw new Error("Proyecto no encontrado");
 }
 
-sheet.appendRow([
-new Date().getTime(),
-data.name,
-data.email,
-data.password,
-0,
-'user'
-]);
+function crearProyecto(datos, archivoOriginal) {
+  const sheet = getSheet_();
+  const newId = sheet.getLastRow(); // ID automático simple
 
-return output({success:true});
+  // Guardar valores únicos en listas auxiliares
+  guardarValorUnico("Vehiculos", datos.vehiculo);
+  guardarValorUnico("TiposCentralita", datos.tipo);
 
+  const parentFolder = DriveApp.getFolderById(ROOT_FOLDER_ID);
+  const projectFolder = parentFolder.createFolder("Proyecto_" + newId);
+
+  const blob = Utilities.newBlob(
+    archivoOriginal.bytes,
+    archivoOriginal.mimeType,
+    archivoOriginal.filename
+  );
+  const uploaded = projectFolder.createFile(blob);
+
+  sheet.appendRow([
+    newId,
+    datos.matricula,
+    datos.vehiculo,
+    datos.tipo,
+    datos.ajustes.join(", "),
+    datos.dtcs,
+    datos.comentarios,
+    uploaded.getId(),
+    projectFolder.getId(),
+    new Date()
+  ]);
+
+  return { success: true, id: newId };
 }
 
-function loginUser(data){
+function listarArchivosProyecto(folderId) {
+  const folder = DriveApp.getFolderById(folderId);
+  const files = folder.getFiles();
+  const result = [];
 
-const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_USERS);
-const rows = sheet.getDataRange().getValues();
-
-for(let i=1;i<rows.length;i++){
-
-if(rows[i][2] === data.email && rows[i][3] === data.password){
-
-return output({
-success:true,
-user:{
-id:rows[i][0],
-name:rows[i][1],
-email:rows[i][2],
-credits:rows[i][4],
-role:rows[i][5]
-}
-});
-
+  while (files.hasNext()) {
+    const f = files.next();
+    result.push({
+      id: f.getId(),
+      nombre: f.getName(),
+      url: f.getUrl()
+    });
+  }
+  return result;
 }
 
+function subirArchivosModificados(folderId, archivos) {
+  const folder = DriveApp.getFolderById(folderId);
+
+  archivos.forEach(file => {
+    const blob = Utilities.newBlob(file.bytes, file.mimeType, file.filename);
+    folder.createFile(blob);
+  });
+
+  return { success: true };
 }
 
-return output({success:false,message:'Credenciales incorrectas'});
+// ---------- Listas auxiliares (vehículos y tipos de centralita) ----------
 
+function guardarValorUnico(sheetName, value) {
+  if (!value) return;
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(sheetName);
+  if (!sheet) {
+    sheet = ss.insertSheet(sheetName);
+    sheet.getRange(1, 1).setValue(sheetName === "Vehiculos" ? "Vehiculo" : "TipoCentralita");
+  }
+
+  const lastRow = sheet.getLastRow();
+  const data = lastRow > 1
+    ? sheet.getRange(2, 1, lastRow - 1, 1).getValues().flat()
+    : [];
+
+  if (!data.includes(value)) {
+    sheet.appendRow([value]);
+  }
 }
 
-function createOrder(data){
+function obtenerLista(sheetName) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(sheetName);
+  if (!sheet) return [];
 
-const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ORDERS);
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
 
-sheet.appendRow([
-new Date().getTime(),
-data.user,
-data.vehicle,
-data.ecu,
-data.original,
-'',
-'Pendiente',
-new Date()
-]);
-
-return output({success:true});
-
+  const data = sheet.getRange(2, 1, lastRow - 1, 1).getValues().flat();
+  return data.filter(v => v && v.toString().trim() !== "");
 }
 
-function getOrders(data){
-
-const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ORDERS);
-const rows = sheet.getDataRange().getValues();
-const result = [];
-
-for(let i=1;i<rows.length;i++){
-
-if(rows[i][1] === data.user){
-result.push(rows[i]);
+function obtenerVehiculos() {
+  return obtenerLista("Vehiculos");
 }
 
-}
-
-return output({success:true,orders:result});
-
-}
-
-function output(data){
-
-return ContentService
-.createTextOutput(JSON.stringify(data))
-.setMimeType(ContentService.MimeType.JSON);
-
+function obtenerTiposCentralita() {
+  return obtenerLista("TiposCentralita");
 }
