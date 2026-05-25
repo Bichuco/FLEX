@@ -1,28 +1,518 @@
 <!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Portal ECU</title>
-<script src="https://cdn.tailwindcss.com"></script>
-</head>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="UTF-8">
+    <title>Gestión de proyectos de modificación de archivos</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+        background: #f5f5f5;
+      }
+      h1 {
+        margin-bottom: 10px;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: 1.2fr 1.5fr;
+        gap: 20px;
+        align-items: flex-start;
+      }
+      .card {
+        background: #fff;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      }
+      label {
+        display: block;
+        margin-top: 10px;
+        font-weight: bold;
+      }
+      input[type="text"], textarea {
+        width: 100%;
+        padding: 8px;
+        margin-top: 4px;
+        box-sizing: border-box;
+      }
+      textarea {
+        resize: vertical;
+        min-height: 60px;
+      }
+      .checkbox-group {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 4px 12px;
+        margin-top: 6px;
+      }
+      .checkbox-group label {
+        font-weight: normal;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 0;
+      }
+      input[type="file"] {
+        margin-top: 6px;
+      }
+      button {
+        margin-top: 15px;
+        padding: 8px 14px;
+        background: #1a73e8;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+      }
+      button:disabled {
+        background: #999;
+        cursor: default;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+        font-size: 14px;
+      }
+      th, td {
+        border: 1px solid #ddd;
+        padding: 6px 8px;
+      }
+      th {
+        background: #f0f0f0;
+      }
+      .status-message {
+        margin-top: 10px;
+        font-size: 13px;
+      }
+      .status-ok { color: #155724; }
+      .status-error { color: #721c24; }
+      .empty {
+        color: #777;
+        font-style: italic;
+      }
+      .proyecto-link {
+        color: #1a73e8;
+        cursor: pointer;
+        text-decoration: underline;
+      }
+      .detalle-label {
+        font-weight: bold;
+      }
+      .detalle-row {
+        margin-bottom: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Gestión de proyectos de modificación de archivos</h1>
+    <p>Formulario de alta, listado de proyectos y gestión de archivos.</p>
 
-<body class="bg-gray-900 text-white min-h-screen flex items-center justify-center">
+    <div class="layout">
+      <!-- Columna izquierda: formulario + listado -->
+      <div>
+        <div class="card">
+          <h2>Nuevo proyecto</h2>
+          <form id="proyectoForm">
+            <label for="matricula">MATRÍCULA</label>
+            <input type="text" id="matricula" required>
 
-<div class="text-center">
-<h1 class="text-5xl font-bold mb-6">Portal ECU</h1>
-<p class="text-gray-400 mb-10">Gestión profesional de archivos ECU</p>
+            <label for="vehiculo">VEHÍCULO</label>
+            <input list="listaVehiculos" id="vehiculo" required>
+            <datalist id="listaVehiculos"></datalist>
 
-<div class="flex gap-4 justify-center">
-<a href="login.html" class="bg-blue-600 hover:bg-blue-700 px-8 py-4 rounded-2xl">
-Login
-</a>
+            <label for="tipo">TIPO CENTRALITA / MOTOR</label>
+            <input list="listaTipos" id="tipo" required>
+            <datalist id="listaTipos"></datalist>
 
-<a href="register.html" class="bg-gray-700 hover:bg-gray-600 px-8 py-4 rounded-2xl">
-Registro
-</a>
-</div>
-</div>
+            <label>AJUSTE / ANULACIÓN (ELIGE AL MENOS UNO)</label>
+            <div class="checkbox-group">
+              <label><input type="checkbox" name="ajuste" value="ADBLUE"> ADBLUE</label>
+              <label><input type="checkbox" name="ajuste" value="EGR"> EGR</label>
+              <label><input type="checkbox" name="ajuste" value="DPF"> DPF</label>
+              <label><input type="checkbox" name="ajuste" value="IMMO"> IMMO</label>
+              <label><input type="checkbox" name="ajuste" value="MARIPOSA"> MARIPOSA</label>
+              <label><input type="checkbox" name="ajuste" value="CHAPALETAS"> CHAPALETAS</label>
+              <label><input type="checkbox" name="ajuste" value="CLONAR"> CLONAR</label>
+              <label><input type="checkbox" name="ajuste" value="OTROS"> OTROS</label>
+            </div>
 
-</body>
+            <label for="dtcs">DTCS</label>
+            <textarea id="dtcs"></textarea>
+
+            <label for="comentarios">COMENTARIOS</label>
+            <textarea id="comentarios"></textarea>
+
+            <label for="archivoOriginal">ARCHIVO ORIGINAL (OBLIGATORIO)</label>
+            <input type="file" id="archivoOriginal" accept="*/*" required>
+
+            <button type="submit" id="submitBtn">CREAR PROYECTO</button>
+            <div id="status" class="status-message"></div>
+          </form>
+        </div>
+
+        <div class="card" style="margin-top:20px;">
+          <h2>Proyectos</h2>
+          <table id="proyectosTable">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>MATRÍCULA</th>
+                <th>VEHÍCULO</th>
+                <th>AJUSTES</th>
+                <th>VER</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Rellenado por JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Columna derecha: detalle + archivos -->
+      <div class="card">
+        <h2>Detalle del proyecto</h2>
+        <div id="detalleProyecto">
+          <p class="empty">Selecciona un proyecto de la tabla para ver sus detalles.</p>
+        </div>
+
+        <div id="archivosProyectoWrapper" style="margin-top:20px; display:none;">
+          <h3>Archivos del proyecto</h3>
+          <div id="listaArchivos"></div>
+
+          <h3 style="margin-top:15px;">Subir archivos modificados</h3>
+          <input type="file" id="archivosModificados" multiple>
+          <button id="btnSubirModificados">Subir modificados</button>
+          <div id="statusArchivos" class="status-message"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let proyectosCache = [];
+      let proyectoActual = null;
+
+      function cargarProyectos() {
+        google.script.run
+          .withSuccessHandler(function(proyectos) {
+            proyectosCache = proyectos || [];
+            pintarProyectos();
+          })
+          .listarProyectos();
+      }
+
+      function pintarProyectos() {
+        const tbody = document.querySelector('#proyectosTable tbody');
+        tbody.innerHTML = '';
+
+        if (!proyectosCache.length) {
+          const tr = document.createElement('tr');
+          const td = document.createElement('td');
+          td.colSpan = 5;
+          td.textContent = 'No hay proyectos todavía.';
+          td.className = 'empty';
+          tr.appendChild(td);
+          tbody.appendChild(tr);
+          return;
+        }
+
+        proyectosCache.forEach(p => {
+          const tr = document.createElement('tr');
+
+          const tdId = document.createElement('td');
+          tdId.textContent = p.id;
+
+          const tdMat = document.createElement('td');
+          tdMat.textContent = p.matricula;
+
+          const tdVeh = document.createElement('td');
+          tdVeh.textContent = p.vehiculo;
+
+          const tdAj = document.createElement('td');
+          tdAj.textContent = p.ajustes || '';
+
+          const tdVer = document.createElement('td');
+          const link = document.createElement('span');
+          link.textContent = 'Ver';
+          link.className = 'proyecto-link';
+          link.onclick = function() { verProyecto(p.id); };
+          tdVer.appendChild(link);
+
+          tr.appendChild(tdId);
+          tr.appendChild(tdMat);
+          tr.appendChild(tdVeh);
+          tr.appendChild(tdAj);
+          tr.appendChild(tdVer);
+
+          tbody.appendChild(tr);
+        });
+      }
+
+      function verProyecto(id) {
+        document.getElementById('detalleProyecto').innerHTML = '<p>Cargando proyecto...</p>';
+        document.getElementById('archivosProyectoWrapper').style.display = 'none';
+        document.getElementById('listaArchivos').innerHTML = '';
+        document.getElementById('statusArchivos').textContent = '';
+
+        google.script.run
+          .withSuccessHandler(function(proyecto) {
+            proyectoActual = proyecto;
+            pintarDetalleProyecto(proyecto);
+            if (proyecto.carpetaId) {
+              cargarArchivosProyecto(proyecto.carpetaId);
+            }
+          })
+          .withFailureHandler(function(err) {
+            document.getElementById('detalleProyecto').innerHTML =
+              '<p class="status-message status-error">Error al cargar el proyecto: ' + err.message + '</p>';
+          })
+          .getProyectoById(id);
+      }
+
+      function pintarDetalleProyecto(p) {
+        const cont = document.getElementById('detalleProyecto');
+        const fecha = p.fecha ? new Date(p.fecha).toLocaleString() : '';
+        const urlOriginal = p.archivoOriginalId
+          ? 'https://drive.google.com/file/d/' + p.archivoOriginalId + '/view'
+          : '';
+
+        cont.innerHTML = `
+          <div class="detalle-row"><span class="detalle-label">ID:</span> ${p.id}</div>
+          <div class="detalle-row"><span class="detalle-label">MATRÍCULA:</span> ${p.matricula}</div>
+          <div class="detalle-row"><span class="detalle-label">VEHÍCULO:</span> ${p.vehiculo}</div>
+          <div class="detalle-row"><span class="detalle-label">TIPO CENTRALITA/MOTOR:</span> ${p.tipo}</div>
+          <div class="detalle-row"><span class="detalle-label">AJUSTES:</span> ${p.ajustes || ''}</div>
+          <div class="detalle-row"><span class="detalle-label">DTCS:</span> ${p.dtcs || ''}</div>
+          <div class="detalle-row"><span class="detalle-label">COMENTARIOS:</span> ${p.comentarios || ''}</div>
+          <div class="detalle-row"><span class="detalle-label">FECHA CREACIÓN:</span> ${fecha}</div>
+          <div class="detalle-row"><span class="detalle-label">ARCHIVO ORIGINAL:</span>
+            ${urlOriginal ? '<a href="' + urlOriginal + '" target="_blank">Ver / descargar</a>' : 'No disponible'}
+          </div>
+        `;
+      }
+
+      function cargarArchivosProyecto(folderId) {
+        google.script.run
+          .withSuccessHandler(function(files) {
+            document.getElementById('archivosProyectoWrapper').style.display = 'block';
+            renderArchivos(files);
+          })
+          .withFailureHandler(function(err) {
+            document.getElementById('listaArchivos').innerHTML =
+              '<p class="status-message status-error">Error al listar archivos: ' + err.message + '</p>';
+          })
+          .listarArchivosProyecto(folderId);
+      }
+
+      function renderArchivos(files) {
+        const div = document.getElementById('listaArchivos');
+        if (!files || !files.length) {
+          div.innerHTML = '<p class="empty">No hay archivos en este proyecto.</p>';
+          return;
+        }
+
+        div.innerHTML = files.map(f => `
+          <p><a href="${f.url}" target="_blank">${f.nombre}</a></p>
+        `).join('');
+      }
+
+      function leerArchivoUnico(input, callback) {
+        const file = input.files[0];
+        if (!file) {
+          callback(null);
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const bytes = Array.from(new Uint8Array(e.target.result));
+          callback({
+            filename: file.name.toUpperCase(),
+            mimeType: file.type || 'application/octet-stream',
+            bytes: bytes
+          });
+        };
+        reader.readAsArrayBuffer(file);
+      }
+
+      function leerArchivosMultiples(input, callback) {
+        const files = input.files;
+        if (!files || !files.length) {
+          callback([]);
+          return;
+        }
+
+        const result = [];
+        let processed = 0;
+
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          const reader = new FileReader();
+
+          reader.onload = function(e) {
+            const bytes = Array.from(new Uint8Array(e.target.result));
+            result.push({
+              filename: file.name.toUpperCase(),
+              mimeType: file.type || 'application/octet-stream',
+              bytes: bytes
+            });
+            processed++;
+            if (processed === files.length) {
+              callback(result);
+            }
+          };
+
+          reader.readAsArrayBuffer(file);
+        }
+      }
+
+      function toUpperInput(id) {
+        const el = document.getElementById(id);
+        el.addEventListener("input", () => {
+          const start = el.selectionStart;
+          const end = el.selectionEnd;
+          el.value = el.value.toUpperCase();
+          el.setSelectionRange(start, end);
+        });
+      }
+
+      function cargarListas() {
+        google.script.run.withSuccessHandler(function(lista) {
+          const datalist = document.getElementById("listaVehiculos");
+          datalist.innerHTML = lista.map(v => `<option value="${v}">`).join("");
+        }).obtenerVehiculos();
+
+        google.script.run.withSuccessHandler(function(lista) {
+          const datalist = document.getElementById("listaTipos");
+          datalist.innerHTML = lista.map(v => `<option value="${v}">`).join("");
+        }).obtenerTiposCentralita();
+      }
+
+      document.getElementById('proyectoForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const btn = document.getElementById('submitBtn');
+        const status = document.getElementById('status');
+        status.textContent = '';
+        status.className = 'status-message';
+
+        const matricula = document.getElementById('matricula').value.trim().toUpperCase();
+        const vehiculo = document.getElementById('vehiculo').value.trim().toUpperCase();
+        const tipo = document.getElementById('tipo').value.trim().toUpperCase();
+        const dtcs = document.getElementById('dtcs').value.trim().toUpperCase();
+        const comentarios = document.getElementById('comentarios').value.trim().toUpperCase();
+        const archivoInput = document.getElementById('archivoOriginal');
+
+        const checks = Array.from(document.querySelectorAll('input[name="ajuste"]:checked'))
+                            .map(c => c.value.toUpperCase());
+
+        if (!matricula || !vehiculo || !tipo) {
+          status.textContent = 'RELLENA MATRÍCULA, VEHÍCULO Y TIPO DE CENTRALITA.';
+          status.className = 'status-message status-error';
+          return;
+        }
+
+        if (!checks.length) {
+          status.textContent = 'DEBES SELECCIONAR AL MENOS UN AJUSTE/ANULACIÓN.';
+          status.className = 'status-message status-error';
+          return;
+        }
+
+        if (!archivoInput.files.length) {
+          status.textContent = 'DEBES SELECCIONAR EL ARCHIVO ORIGINAL.';
+          status.className = 'status-message status-error';
+          return;
+        }
+
+        btn.disabled = true;
+        status.textContent = 'GUARDANDO...';
+        status.className = 'status-message';
+
+        const datos = {
+          matricula: matricula,
+          vehiculo: vehiculo,
+          tipo: tipo,
+          ajustes: checks,
+          dtcs: dtcs,
+          comentarios: comentarios
+        };
+
+        leerArchivoUnico(archivoInput, function(archivoOriginal) {
+          if (!archivoOriginal) {
+            status.textContent = 'ERROR LEYENDO EL ARCHIVO ORIGINAL.';
+            status.className = 'status-message status-error';
+            btn.disabled = false;
+            return;
+          }
+
+          google.script.run
+            .withSuccessHandler(function(res) {
+              if (res && res.success) {
+                status.textContent = 'PROYECTO CREADO CORRECTAMENTE (ID: ' + res.id + ').';
+                status.className = 'status-message status-ok';
+                document.getElementById('proyectoForm').reset();
+                cargarProyectos();
+                cargarListas();
+              } else {
+                status.textContent = 'ERROR AL CREAR EL PROYECTO.';
+                status.className = 'status-message status-error';
+              }
+              btn.disabled = false;
+            })
+            .withFailureHandler(function(err) {
+              status.textContent = 'ERROR: ' + err.message;
+              status.className = 'status-message status-error';
+              btn.disabled = false;
+            })
+            .crearProyecto(datos, archivoOriginal);
+        });
+      });
+
+      document.getElementById('btnSubirModificados').addEventListener('click', function() {
+        const status = document.getElementById('statusArchivos');
+        const input = document.getElementById('archivosModificados');
+
+        if (!proyectoActual || !proyectoActual.carpetaId) {
+          status.textContent = 'NO HAY PROYECTO SELECCIONADO O NO TIENE CARPETA.';
+          status.className = 'status-message status-error';
+          return;
+        }
+
+        leerArchivosMultiples(input, function(archivos) {
+          if (!archivos.length) {
+            status.textContent = 'NO HAS SELECCIONADO ARCHIVOS.';
+            status.className = 'status-message status-error';
+            return;
+          }
+
+          status.textContent = 'SUBIENDO ARCHIVOS...';
+          status.className = 'status-message';
+
+          google.script.run
+            .withSuccessHandler(function() {
+              status.textContent = 'ARCHIVOS SUBIDOS CORRECTAMENTE.';
+              status.className = 'status-message status-ok';
+              document.getElementById('archivosModificados').value = '';
+              cargarArchivosProyecto(proyectoActual.carpetaId);
+            })
+            .withFailureHandler(function(err) {
+              status.textContent = 'ERROR AL SUBIR ARCHIVOS: ' + err.message;
+              status.className = 'status-message status-error';
+            })
+            .subirArchivosModificados(proyectoActual.carpetaId, archivos);
+        });
+      });
+
+      document.addEventListener('DOMContentLoaded', () => {
+        toUpperInput("matricula");
+        toUpperInput("vehiculo");
+        toUpperInput("tipo");
+        toUpperInput("dtcs");
+        toUpperInput("comentarios");
+        cargarProyectos();
+        cargarListas();
+      });
+    </script>
+  </body>
 </html>
